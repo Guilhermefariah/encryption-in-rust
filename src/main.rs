@@ -29,8 +29,6 @@ fn main() {
     let ciphertext: Vec<u8> = cipher.encrypt(&nonce, uuid4_api_key.as_ref()).unwrap();
     println!("Ciphertext: {:?}", hex::encode(&ciphertext));
 
-    // let ciphertext_go = "12ef7387f20e85c5b181386e3d46311ba5152a12a6980271af43b646f6aec1894b787ecefb62ad855d2ac3e73ed015fccf6964ce".to_string().into_bytes();
-    // assert_eq!(ciphertext, ciphertext_go);
     let plaintext = cipher.decrypt(&nonce, ciphertext.as_ref()).unwrap();
     let plaintext_from_utf8 = std::str::from_utf8(&plaintext).unwrap();
     println!("Plaintext from utf8: {:?}", plaintext_from_utf8);
