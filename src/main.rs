@@ -1,40 +1,48 @@
 use aes_gcm::{
-    aead::{generic_array::GenericArray, Aead, AeadCore, KeyInit, OsRng},
-    Aes256Gcm,
-    Key, // Or `Aes128Gcm`
-    Nonce,
+    aead::{generic_array::GenericArray, Aead},
+    Aes256Gcm, Key, KeyInit,
 };
+use rand::RngCore;
+use uuid::Uuid;
 
 fn main() {
-    // The encryption key can be generated randomly:
-    // let key = Aes256Gcm::generate_key(OsRng);
-    let uuid4_api_key = "".to_string();
+    // Generate a new UUID
+    let uuid4_api_key = Uuid::new_v4().to_string();
+    println!("Generated UUID: {}", uuid4_api_key);
 
-    let key = "".to_string();
-    let nonce = "".to_string();
-
-    if key.len() != 64 {
-        panic!("Invalid length for key",);
-    };
-    if nonce.len() != 24 {
-        panic!("Invalid length for nonce",);
-    };
-    let key = hex::decode(key).unwrap();
-    let nonce = hex::decode(nonce).unwrap();
-
+    let key_str = "";
+    let key = hex::decode(key_str).expect("Failed to decode key");
     let key = Key::<Aes256Gcm>::from_slice(&key);
-    let nonce = GenericArray::from_slice(&nonce);
+
+    // Generate a 12-byte nonce
+    let mut rng = rand::thread_rng();
+    let mut nonce_bytes = [0u8; 12];
+    rng.fill_bytes(&mut nonce_bytes);
+    let nonce = GenericArray::from_slice(&nonce_bytes);
 
     let cipher = Aes256Gcm::new(&key);
     let ciphertext: Vec<u8> = cipher.encrypt(&nonce, uuid4_api_key.as_ref()).unwrap();
-    println!("Ciphertext: {:?}", hex::encode(&ciphertext));
 
-    let plaintext = cipher.decrypt(&nonce, ciphertext.as_ref()).unwrap();
-    let plaintext_from_utf8 = std::str::from_utf8(&plaintext).unwrap();
-    println!("Plaintext from utf8: {:?}", plaintext_from_utf8);
-    assert_eq!(std::str::from_utf8(&plaintext).unwrap(), uuid4_api_key);
+    // Append nonce to ciphertext
+    let mut combined = ciphertext.clone();
+    combined.extend_from_slice(&nonce);
+
     println!(
-        "Decrypted plaintext: {:?}",
-        std::str::from_utf8(&plaintext).unwrap()
+        "Combined (ciphertext + nonce): {:?}",
+        hex::encode(&combined)
     );
+
+    // Now let's simulate the decryption side:
+
+    // Split the ciphertext and nonce
+    let nonce_pos = combined.len() - 12;
+    let received_ciphertext = &combined[..nonce_pos];
+    let received_nonce = &combined[nonce_pos..];
+
+    let received_nonce = GenericArray::from_slice(received_nonce);
+    let plaintext = cipher.decrypt(received_nonce, received_ciphertext).unwrap();
+    let plaintext_from_utf8 = std::str::from_utf8(&plaintext).unwrap();
+
+    println!("Decrypted plaintext: {:?}", plaintext_from_utf8);
+    assert_eq!(plaintext_from_utf8, uuid4_api_key);
 }
